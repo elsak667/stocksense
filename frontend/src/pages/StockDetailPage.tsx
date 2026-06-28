@@ -38,31 +38,46 @@ export default function StockDetailPage() {
   })
   const volColors = klines.map((k) => (k.close >= k.open ? "#22c55e" : "#ef4444"))
 
+  const dates = klines.map((k) => k.date)
+  const vols = klines.map((k) => k.volume)
+  const klineData = klines.map((k) => [k.open, k.close, k.low, k.high])
+
   const klineOption = {
-    tooltip: { trigger: "axis" as const, axisPointer: { type: "cross" as const } },
-    xAxis: { type: "category" as const, data: klines.map((k) => k.date), axisLabel: { fontSize: 11 } },
+    tooltip: {
+      trigger: "axis" as const,
+      axisPointer: { type: "cross" as const },
+    },
+    legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 12, itemHeight: 2, data: ["MA5", "MA10", "MA20"] },
+    grid: [
+      { left: 50, right: 30, top: 25, bottom: "30%", height: "auto" },
+      { left: 50, right: 30, top: "72%", bottom: 20 },
+    ],
+    xAxis: [
+      { type: "category" as const, data: dates, axisLabel: { show: false }, gridIndex: 0 },
+      { type: "category" as const, data: dates, axisLabel: { fontSize: 10 }, gridIndex: 1 },
+    ],
     yAxis: [
-      { type: "value" as const, scale: true, splitLine: { lineStyle: { color: "#f1f5f9" } } },
-      { type: "value" as const, scale: true, name: "成交量", splitLine: { show: false } },
+      { type: "value" as const, scale: true, splitLine: { lineStyle: { color: "#f1f5f9" } }, gridIndex: 0 },
+      { type: "value" as const, scale: true, splitLine: { show: false }, gridIndex: 1 },
     ],
     series: [
       {
-        type: "candlestick" as const,
-        data: klines.map((k) => [k.open, k.close, k.low, k.high]),
+        type: "candlestick" as const, xAxisIndex: 0, yAxisIndex: 0,
+        data: klineData,
         itemStyle: { color: "#ef4444", color0: "#22c55e", borderColor: "#ef4444", borderColor0: "#22c55e" },
       },
-      { type: "line" as const, name: "MA5", data: ma(5), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#f59e0b" } },
-      { type: "line" as const, name: "MA10", data: ma(10), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#3b82f6" } },
-      { type: "line" as const, name: "MA20", data: ma(20), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#8b5cf6" } },
+      { type: "line" as const, name: "MA5", xAxisIndex: 0, yAxisIndex: 0, data: ma(5), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#f59e0b" } },
+      { type: "line" as const, name: "MA10", xAxisIndex: 0, yAxisIndex: 0, data: ma(10), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#3b82f6" } },
+      { type: "line" as const, name: "MA20", xAxisIndex: 0, yAxisIndex: 0, data: ma(20), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#8b5cf6" } },
       {
-        type: "bar" as const,
-        yAxisIndex: 1,
-        data: klines.map((k, i) => ({ value: k.volume, itemStyle: { color: volColors[i] } })),
+        type: "bar" as const, xAxisIndex: 1, yAxisIndex: 1,
+        data: vols.map((v, i) => ({ value: v, itemStyle: { color: volColors[i] } })),
       },
     ],
-    dataZoom: [{ type: "inside" as const }],
-    grid: { left: 60, right: 60, top: 30, bottom: 40 },
-    legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 12, itemHeight: 2 },
+    dataZoom: [
+      { type: "inside" as const },
+      { type: "slider" as const, height: 12, bottom: 0, borderColor: "#e2e8f0", backgroundColor: "#f8fafc" },
+    ],
   }
 
   const runAnalysis = useCallback(async () => {
@@ -117,7 +132,7 @@ export default function StockDetailPage() {
         <div className="flex-1 min-w-0 space-y-4">
           <Card>
             <CardContent className="p-2">
-              <ReactECharts option={klineOption} style={{ height: 500 }} />
+              <ReactECharts option={klineOption} style={{ height: 560 }} />
             </CardContent>
           </Card>
         </div>
