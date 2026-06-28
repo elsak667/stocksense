@@ -36,47 +36,40 @@ export default function StockDetailPage() {
     for (let j = i - n + 1; j <= i; j++) s += closes[j]
     return +(s / n).toFixed(2)
   })
-  const volColors = klines.map((k) => (k.close >= k.open ? "#22c55e" : "#ef4444"))
-
+  const volColors = klines.map((k) => (k.close >= k.open ? "#dc2626" : "#16a34a"))
   const dates = klines.map((k) => k.date)
   const vols = klines.map((k) => k.volume)
   const klineData = klines.map((k) => [k.open, k.close, k.low, k.high])
 
   const klineOption = {
-    tooltip: {
-      trigger: "axis" as const,
-      axisPointer: { type: "cross" as const },
-    },
-    legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 12, itemHeight: 2, data: ["MA5", "MA10", "MA20"] },
+    tooltip: { trigger: "axis" as const, axisPointer: { type: "cross" as const } },
+    legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 14, itemHeight: 2, data: ["5日均线", "10日均线", "20日均线"] },
     grid: [
-      { left: 50, right: 30, top: 25, bottom: "30%", height: "auto" },
-      { left: 50, right: 30, top: "72%", bottom: 20 },
+      { left: 55, right: 20, top: 25, bottom: "38%" },
+      { left: 55, right: 20, top: "62%", bottom: 30 },
     ],
     xAxis: [
       { type: "category" as const, data: dates, axisLabel: { show: false }, gridIndex: 0 },
-      { type: "category" as const, data: dates, axisLabel: { fontSize: 10 }, gridIndex: 1 },
+      { type: "category" as const, data: dates, axisLabel: { fontSize: 10, color: "#94a3b8" }, gridIndex: 1 },
     ],
     yAxis: [
-      { type: "value" as const, scale: true, splitLine: { lineStyle: { color: "#f1f5f9" } }, gridIndex: 0 },
-      { type: "value" as const, scale: true, splitLine: { show: false }, gridIndex: 1 },
+      { type: "value" as const, scale: true, splitLine: { lineStyle: { color: "#f1f5f9" } }, gridIndex: 0, axisLabel: { fontSize: 10, color: "#94a3b8" } },
+      { type: "value" as const, scale: true, splitLine: { show: false }, gridIndex: 1, axisLabel: { fontSize: 9, color: "#94a3b8" } },
     ],
     series: [
       {
         type: "candlestick" as const, xAxisIndex: 0, yAxisIndex: 0,
         data: klineData,
-        itemStyle: { color: "#ef4444", color0: "#22c55e", borderColor: "#ef4444", borderColor0: "#22c55e" },
+        itemStyle: { color: "#dc2626", color0: "#16a34a", borderColor: "#dc2626", borderColor0: "#16a34a" },
       },
-      { type: "line" as const, name: "MA5", xAxisIndex: 0, yAxisIndex: 0, data: ma(5), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#f59e0b" } },
-      { type: "line" as const, name: "MA10", xAxisIndex: 0, yAxisIndex: 0, data: ma(10), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#3b82f6" } },
-      { type: "line" as const, name: "MA20", xAxisIndex: 0, yAxisIndex: 0, data: ma(20), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#8b5cf6" } },
-      {
-        type: "bar" as const, xAxisIndex: 1, yAxisIndex: 1,
-        data: vols.map((v, i) => ({ value: v, itemStyle: { color: volColors[i] } })),
-      },
+      { type: "line" as const, name: "5日均线", xAxisIndex: 0, yAxisIndex: 0, data: ma(5), smooth: true, symbol: "none", lineStyle: { width: 1.5, color: "#d97706" } },
+      { type: "line" as const, name: "10日均线", xAxisIndex: 0, yAxisIndex: 0, data: ma(10), smooth: true, symbol: "none", lineStyle: { width: 1.5, color: "#2563eb" } },
+      { type: "line" as const, name: "20日均线", xAxisIndex: 0, yAxisIndex: 0, data: ma(20), smooth: true, symbol: "none", lineStyle: { width: 1.5, color: "#7c3aed" } },
+      { type: "bar" as const, xAxisIndex: 1, yAxisIndex: 1, data: vols.map((v, i) => ({ value: v, itemStyle: { color: volColors[i] } })) },
     ],
     dataZoom: [
       { type: "inside" as const },
-      { type: "slider" as const, height: 12, bottom: 0, borderColor: "#e2e8f0", backgroundColor: "#f8fafc" },
+      { type: "slider" as const, bottom: 2, height: 18, borderColor: "#e2e8f0", backgroundColor: "#f8fafc", fillerColor: "rgba(59,130,246,0.1)", handleStyle: { borderColor: "#94a3b8" }, labelStyle: { fontSize: 10, color: "#64748b" } },
     ],
   }
 
