@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import ReactECharts from "echarts-for-react"
 import { getQuote, getKlines, runAnalysisStream, getAnalysisHistory } from "@/lib/api"
-import type { SSEEvent, AnalysisDetail, AnalysisListItem } from "@/lib/api"
+import type { AnalysisDetail, AnalysisListItem } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Play, Loader2 } from "lucide-react"
@@ -56,7 +56,7 @@ export default function StockDetailPage() {
     setAnalysisLog([])
     setAnalysisResult(null)
     try {
-      await runAnalysisStream(code, (e: SSEEvent) => {
+      await runAnalysisStream(code, (e: Record<string, unknown>) => {
         if (e.type === "stage") {
           setAnalysisLog((p) => [...p, `[${e.stage}] ${e.status === "start" ? "开始" : "完成"}`])
         } else if (e.type === "agent_start") {
@@ -64,7 +64,7 @@ export default function StockDetailPage() {
         } else if (e.type === "agent_done") {
           setAnalysisLog((p) => [...p, `分析师 ${e.name} → ${e.badge}`])
         } else if (e.type === "complete" && e.result) {
-          setAnalysisResult(e.result)
+          setAnalysisResult(e.result as Record<string, unknown>)
         } else if (e.type === "error") {
           setAnalysisLog((p) => [...p, `错误: ${e.detail}`])
         }
@@ -96,114 +96,110 @@ export default function StockDetailPage() {
         )}
       </header>
 
-      <main className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* Quote info */}
-        {quote && (
-          <div className="grid grid-cols-4 gap-4 text-sm">
-            <div>开 {quote.open.toFixed(2)}</div>
-            <div>高 {quote.high.toFixed(2)}</div>
-            <div>低 {quote.low.toFixed(2)}</div>
-            <div>昨收 {quote.prev_close.toFixed(2)}</div>
-          </div>
-        )}
-
-        {/* K-line chart */}
-        <Card>
-          <CardContent className="p-2">
-            <ReactECharts option={klineOption} style={{ height: 400 }} />
-          </CardContent>
-        </Card>
-
-        {/* Analysis controls */}
-        <div className="flex gap-3">
-          <Button onClick={runAnalysis} disabled={analyzing}>
-            {analyzing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
-            {analyzing ? "分析中..." : "开始分析"}
-          </Button>
-          <Button variant="outline" onClick={() => setShowHistory(!showHistory)}>
-            历史分析
-          </Button>
+      {/* 左 K线 + 右分析 */}
+      <main className="max-w-6xl mx-auto p-6 flex gap-6">
+        {/* 左侧：K线 */}
+        <div className="flex-1 min-w-0 space-y-4">
+          <Card>
+            <CardContent className="p-2">
+              <ReactECharts option={klineOption} style={{ height: 500 }} />
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Analysis log */}
-        {analysisLog.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle className="text-base">分析进度</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm font-mono">
-              {analysisLog.map((l, i) => <p key={i}>{l}</p>)}
-            </CardContent>
-          </Card>
-        )}
+        {/* 右侧：分析面板 */}
+        <div className="w-[420px] shrink-0 space-y-4">
+          {quote && (
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>开 {quote.open.toFixed(2)}</div>
+              <div>高 {quote.high.toFixed(2)}</div>
+              <div>低 {quote.low.toFixed(2)}</div>
+              <div>昨收 {quote.prev_close.toFixed(2)}</div>
+            </div>
+          )}
 
-        {/* Decision result */}
-        {decision && (
-          <Card className={decision.action === "BUY" ? "border-red-300" : decision.action === "SELL" ? "border-green-300" : ""}>
-            <CardHeader><CardTitle className="text-base">决策: {decision.action} (信心度 {decision.confidence}%)</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p>{decision.reason}</p>
-              {decision.target_price && <p>目标价: {decision.target_price}</p>}
-              {decision.stop_loss && <p>止损价: {decision.stop_loss}</p>}
-              {decision.position_pct != null && <p>建议仓位: {decision.position_pct}%</p>}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Agent details */}
-        {agents && Object.keys(agents).length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {Object.entries(agents).map(([key, a]) => (
-              <Card key={key}>
-                <CardHeader><CardTitle className="text-sm">{a.name} — {a.badge}</CardTitle></CardHeader>
-                <CardContent className="text-xs">{a.summary}</CardContent>
-              </Card>
-            ))}
+          <div className="flex gap-2">
+            <Button onClick={runAnalysis} disabled={analyzing} className="flex-1">
+              {analyzing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+              {analyzing ? "分析中..." : "开始分析"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowHistory(!showHistory)}>历史</Button>
           </div>
-        )}
 
-        {/* Debate */}
-        {debate && (debate.bull || debate.bear) && (
-          <div className="grid grid-cols-2 gap-3">
-            {debate.bull && (
-              <Card className="border-red-200">
-                <CardHeader><CardTitle className="text-sm text-red-500">看多</CardTitle></CardHeader>
-                <CardContent className="text-xs whitespace-pre-wrap">{debate.bull}</CardContent>
-              </Card>
-            )}
-            {debate.bear && (
-              <Card className="border-green-200">
-                <CardHeader><CardTitle className="text-sm text-green-600">看空</CardTitle></CardHeader>
-                <CardContent className="text-xs whitespace-pre-wrap">{debate.bear}</CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+          {analysisLog.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">分析进度</CardTitle></CardHeader>
+              <CardContent className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
+                {analysisLog.map((l, i) => <p key={i}>{l}</p>)}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Risk */}
-        {risk && (
-          <Card>
-            <CardHeader><CardTitle className="text-sm">风控 — {risk.risk_level}</CardTitle></CardHeader>
-            <CardContent className="text-xs space-y-1">
-              {risk.key_risks?.map((r, i) => <p key={i}>• {r}</p>)}
-              <p>{risk.summary}</p>
-            </CardContent>
-          </Card>
-        )}
+          {decision && (
+            <Card className={decision.action === "BUY" ? "border-red-300" : decision.action === "SELL" ? "border-green-300" : ""}>
+              <CardHeader><CardTitle className="text-sm">决策: {decision.action} (信心 {decision.confidence}%)</CardTitle></CardHeader>
+              <CardContent className="text-xs space-y-1">
+                <p>{decision.reason}</p>
+                {decision.target_price && <p>目标价: {decision.target_price}</p>}
+                {decision.stop_loss && <p>止损价: {decision.stop_loss}</p>}
+                {decision.position_pct != null && <p>仓位: {decision.position_pct}%</p>}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* History */}
-        {showHistory && history.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle className="text-base">历史分析</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {history.map((h: AnalysisListItem) => (
-                <div key={h.id} className="flex justify-between items-center text-sm border-b pb-1">
-                  <span>{h.stock_name} ({h.stock_code})</span>
-                  <span>{h.decision?.action ?? "?"} {h.decision?.confidence ?? 0}%</span>
-                  <span className="text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
-                </div>
+          {agents && Object.keys(agents).length > 0 && (
+            <div className="space-y-2">
+              {Object.entries(agents).map(([key, a]) => (
+                <Card key={key}>
+                  <CardHeader><CardTitle className="text-xs">{a.name} — {a.badge}</CardTitle></CardHeader>
+                  <CardContent className="text-xs">{a.summary}</CardContent>
+                </Card>
               ))}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+
+          {debate && (debate.bull || debate.bear) && (
+            <div className="space-y-2">
+              {debate.bull && (
+                <Card className="border-red-200">
+                  <CardHeader><CardTitle className="text-xs text-red-500">看多</CardTitle></CardHeader>
+                  <CardContent className="text-xs whitespace-pre-wrap">{debate.bull}</CardContent>
+                </Card>
+              )}
+              {debate.bear && (
+                <Card className="border-green-200">
+                  <CardHeader><CardTitle className="text-xs text-green-600">看空</CardTitle></CardHeader>
+                  <CardContent className="text-xs whitespace-pre-wrap">{debate.bear}</CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {risk && (
+            <Card>
+              <CardHeader><CardTitle className="text-xs">风控 — {risk.risk_level}</CardTitle></CardHeader>
+              <CardContent className="text-xs space-y-1">
+                {risk.key_risks?.map((r, i) => <p key={i}>• {r}</p>)}
+                <p>{risk.summary}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {showHistory && history.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">历史分析</CardTitle></CardHeader>
+              <CardContent className="text-xs space-y-1">
+                {history.map((h: AnalysisListItem) => (
+                  <div key={h.id} className="flex justify-between border-b pb-1">
+                    <span>{h.stock_name}</span>
+                    <span>{h.decision?.action ?? "?"} {h.decision?.confidence ?? 0}%</span>
+                    <span className="text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </main>
     </div>
   )
