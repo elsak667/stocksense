@@ -29,25 +29,40 @@ export default function StockDetailPage() {
     return v > 0 ? "text-red-500" : v < 0 ? "text-green-600" : ""
   }
 
+  const closes = klines.map((k) => k.close)
+  const ma = (n: number) => closes.map((_, i) => {
+    if (i < n - 1) return undefined
+    let s = 0
+    for (let j = i - n + 1; j <= i; j++) s += closes[j]
+    return +(s / n).toFixed(2)
+  })
+  const volColors = klines.map((k) => (k.close >= k.open ? "#22c55e" : "#ef4444"))
+
   const klineOption = {
     tooltip: { trigger: "axis" as const, axisPointer: { type: "cross" as const } },
-    xAxis: { type: "category" as const, data: klines.map((k) => k.date) },
-    yAxis: [{ type: "value" as const, scale: true }, { type: "value" as const, scale: true, name: "成交量" }],
+    xAxis: { type: "category" as const, data: klines.map((k) => k.date), axisLabel: { fontSize: 11 } },
+    yAxis: [
+      { type: "value" as const, scale: true, splitLine: { lineStyle: { color: "#f1f5f9" } } },
+      { type: "value" as const, scale: true, name: "成交量", splitLine: { show: false } },
+    ],
     series: [
       {
         type: "candlestick" as const,
         data: klines.map((k) => [k.open, k.close, k.low, k.high]),
         itemStyle: { color: "#ef4444", color0: "#22c55e", borderColor: "#ef4444", borderColor0: "#22c55e" },
       },
+      { type: "line" as const, name: "MA5", data: ma(5), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#f59e0b" } },
+      { type: "line" as const, name: "MA10", data: ma(10), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#3b82f6" } },
+      { type: "line" as const, name: "MA20", data: ma(20), smooth: true, symbol: "none", lineStyle: { width: 1, color: "#8b5cf6" } },
       {
         type: "bar" as const,
         yAxisIndex: 1,
-        data: klines.map((k) => k.volume),
-        itemStyle: { color: "#94a3b8" },
+        data: klines.map((k, i) => ({ value: k.volume, itemStyle: { color: volColors[i] } })),
       },
     ],
     dataZoom: [{ type: "inside" as const }],
-    grid: { left: 60, right: 60, top: 20, bottom: 40 },
+    grid: { left: 60, right: 60, top: 30, bottom: 40 },
+    legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 12, itemHeight: 2 },
   }
 
   const runAnalysis = useCallback(async () => {
