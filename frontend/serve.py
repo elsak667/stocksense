@@ -25,11 +25,14 @@ async def api_proxy(request):
     headers.pop('host', None)
     async with ClientSession() as s:
         async with s.request(request.method, url, headers=headers, data=body) as r:
-            rbody = await r.read()
-            resp = web.Response(body=rbody, status=r.status)
+            resp = web.StreamResponse(status=r.status)
             for k, v in r.headers.items():
                 if k.lower() not in ('transfer-encoding',):
                     resp.headers[k] = v
+            await resp.prepare(request)
+            async for chunk in r.content.iter_chunked(65536):
+                await resp.write(chunk)
+            await resp.write_eof()
             return resp
 
 app = web.Application()
