@@ -79,16 +79,12 @@ class OpenAICompatProvider(LLMProvider):
 
 @llm_registry.register("deepseek")
 class DeepSeekProvider(OpenAICompatProvider):
-    """DeepSeek — 就是 OpenAI 兼容协议, 单独注册方便 settings 里切换."""
+    """DeepSeek — 就是 OpenAI 兼容协议, 用 settings 里的 base_url/model."""
 
     name = "deepseek"
 
     def __init__(self):
-        super().__init__(
-            base_url="https://api.deepseek.com",
-            api_key=settings.llm_api_key,
-            model="deepseek-chat",
-        )
+        super().__init__()
 
 
 def get_llm(provider_name: str | None = None) -> LLMProvider:
