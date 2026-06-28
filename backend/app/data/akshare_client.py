@@ -168,11 +168,20 @@ async def get_finance_a(code: str) -> dict[str, Any]:
         if df is None or df.empty:
             return {}
         row = df.iloc[-1]
-        COLS = {"一、营业总收入": "revenue", "二、营业总成本": "cost", "三、营业利润": "op_profit", "四、利润总额": "total_profit", "五、净利润": "net_profit", "基本每股收益": "eps", "营业毛利率": "gross_margin", "营业利润率": "op_margin", "净利率": "net_margin", "净资产收益率": "roe", "总资产周转率": "asset_turn"}
+        COLS = {"TOTALOPERATEREVE":"revenue","PARENTNETPROFIT":"net_profit","EPSJB":"eps","ROEJQ":"roe","XSMLL":"gross_margin","XSJLL":"net_margin","ZZCJLL":"asset_turn","ROIC":"roic"}
         out = {}
         for cn, en in COLS.items():
             v = row.get(cn)
             out[en] = safe_float(v) if v is not None else None
+        global _spot_cache
+        if "data" in _spot_cache:
+            spot = _spot_cache["data"]
+        else:
+            spot = await asyncio.to_thread(ak.stock_zh_a_spot_em)
+        sr = spot[spot["代码"] == code]
+        if not sr.empty:
+            out["pe_ttm"] = safe_float(sr.iloc[0].get("市盈率-动态"))
+            out["pb"] = safe_float(sr.iloc[0].get("市净率"))
         return out
     except Exception as e:
         logger.warning("基本面数据失败 %s: %s", code, e)
