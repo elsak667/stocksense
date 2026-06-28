@@ -46,6 +46,20 @@ export default function StockDetailPage() {
       backgroundColor: "rgba(30,41,59,0.95)",
       borderColor: "rgba(255,255,255,0.1)",
       textStyle: { color: "#e2e8f0", fontSize: 12 },
+      formatter: function (params: any) {
+        if (!params || params.length === 0) return ""
+        const p = params[0]
+        let html = `<b>${p.axisValue}</b><br/>`
+        for (const item of params) {
+          if (item.seriesType === "candlestick" && item.data) {
+            const d = item.data as number[]
+            html += `开盘: <b>${d[0].toFixed(2)}</b><br/>收盘: <b>${d[1].toFixed(2)}</b><br/>最低: <b>${d[2].toFixed(2)}</b><br/>最高: <b>${d[3].toFixed(2)}</b><br/>`
+          } else if (item.seriesType === "line" && item.value != null) {
+            html += `${item.seriesName}: <b>${(item.value as number).toFixed(2)}</b><br/>`
+          }
+        }
+        return html
+      },
     },
     legend: { show: true, top: 0, right: 0, icon: "roundRect", itemWidth: 14, itemHeight: 2, textStyle: { color: "#94a3b8" }, data: ["5日均线", "10日均线", "20日均线"] },
     grid: [
@@ -83,15 +97,18 @@ export default function StockDetailPage() {
     setAnalysisLog([])
     setAnalysisResult(null)
     try {
-      const stageMap: Record<string, string> = { data: "数据", quote: "行情", klines: "K线", debate: "辩论", risk: "风控", decision: "决策", agent_start: "分析师", agent_done: "完成" }
       await runAnalysisStream(code, (e: Record<string, unknown>) => {
         if (e.type === "stage") {
-          const s = stageMap[e.stage as string] || (e.stage as string)
-          setAnalysisLog((p) => [...p, `${s} ${e.status === "start" ? "开始" : "完成"}`])
-        } else if (e.type === "agent_start") {
-          setAnalysisLog((p) => [...p, `分析师 ${e.name} 分析中...`])
-        } else if (e.type === "agent_done") {
-          setAnalysisLog((p) => [...p, `分析师 ${e.name} → ${e.badge}`])
+          const st = e.stage as string
+          if (st === "data") {
+            setAnalysisLog((p) => [...p, `${e.status === "start" ? "获取数据..." : "数据加载完成"}`])
+          } else if (st === "agent_start") {
+            setAnalysisLog((p) => [...p, `分析师 ${e.name} 分析中...`])
+          } else if (st === "agent_done") {
+            setAnalysisLog((p) => [...p, `✓ ${e.name}: ${e.badge}`])
+          } else {
+            setAnalysisLog((p) => [...p, `${st} ${e.status === "start" ? "开始" : "完成"}`])
+          }
         } else if (e.type === "complete" && e.result) {
           setAnalysisResult(e.result as Record<string, unknown>)
         } else if (e.type === "error") {
