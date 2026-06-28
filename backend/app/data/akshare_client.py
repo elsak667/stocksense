@@ -95,13 +95,13 @@ def _load_spot() -> dict[str, dict]:
 
     global _spot_cache, _spot_cache_ts
     now = time.time()
-    if "data" in _spot_cache and (now - _spot_cache_ts) < _SPOT_TTL:
-        return _spot_cache["data"]
+    if "dict" in _spot_cache and (now - _spot_cache_ts) < _SPOT_TTL:
+        return _spot_cache["dict"]
     df = ak.stock_zh_a_spot_em()
     cache: dict[str, dict] = {}
     for _, r in df.iterrows():
         cache[str(r["代码"])] = r.to_dict()
-    _spot_cache["data"] = cache
+    _spot_cache["dict"] = cache
     _spot_cache_ts = now
     return cache
 
@@ -173,15 +173,10 @@ async def get_finance_a(code: str) -> dict[str, Any]:
         for cn, en in COLS.items():
             v = row.get(cn)
             out[en] = safe_float(v) if v is not None else None
-        global _spot_cache
-        if "data" in _spot_cache:
-            spot = _spot_cache["data"]
-        else:
-            spot = await asyncio.to_thread(ak.stock_zh_a_spot_em)
-        sr = spot[spot["代码"] == code]
-        if not sr.empty:
-            out["pe_ttm"] = safe_float(sr.iloc[0].get("市盈率-动态"))
-            out["pb"] = safe_float(sr.iloc[0].get("市净率"))
+        r = _load_spot().get(code)
+        if r:
+            out["pe_ttm"] = safe_float(r.get("市盈率-动态"))
+            out["pb"] = safe_float(r.get("市净率"))
         return out
     except Exception as e:
         logger.warning("基本面数据失败 %s: %s", code, e)
@@ -223,10 +218,10 @@ class AkshareClient:
 
     async def _load_spot(self) -> pd.DataFrame:
         global _spot_cache
-        if "data" in _spot_cache:
-            return _spot_cache["data"]
+        if "df" in _spot_cache:
+            return _spot_cache["df"]
         df = await self._run(ak.stock_zh_a_spot_em)
-        _spot_cache["data"] = df
+        _spot_cache["df"] = df
         return df
 
 

@@ -81,6 +81,9 @@ async def lifespan(app: FastAPI):
             await s.commit()
 
     task = asyncio.create_task(_preheat_cache())
+    # 预热 spot 数据缓存 (用于 get_finance_a 的 PE/PB)
+    from app.data.akshare_client import _load_spot as _warm_spot
+    asyncio.create_task(asyncio.to_thread(_warm_spot))
     yield
     task.cancel()
     await engine.dispose()
