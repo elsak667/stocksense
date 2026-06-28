@@ -83,9 +83,11 @@ export default function StockDetailPage() {
     setAnalysisLog([])
     setAnalysisResult(null)
     try {
+      const stageMap: Record<string, string> = { data: "数据", quote: "行情", klines: "K线", debate: "辩论", risk: "风控", decision: "决策", agent_start: "分析师", agent_done: "完成" }
       await runAnalysisStream(code, (e: Record<string, unknown>) => {
         if (e.type === "stage") {
-          setAnalysisLog((p) => [...p, `[${e.stage}] ${e.status === "start" ? "开始" : "完成"}`])
+          const s = stageMap[e.stage as string] || (e.stage as string)
+          setAnalysisLog((p) => [...p, `${s} ${e.status === "start" ? "开始" : "完成"}`])
         } else if (e.type === "agent_start") {
           setAnalysisLog((p) => [...p, `分析师 ${e.name} 分析中...`])
         } else if (e.type === "agent_done") {
