@@ -1,0 +1,1 @@
+"""app/api package — 把所有路由放到 __init__ 里方便 main.py 一行 import."""
