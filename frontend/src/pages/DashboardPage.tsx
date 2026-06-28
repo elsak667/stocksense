@@ -1,21 +1,22 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getDashboard, addToWatchlist, removeFromWatchlist, searchStocks } from "@/lib/api"
-import type { WatchlistQuote, SearchResult } from "@/lib/api"
+import type { WatchlistQuote } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Search, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react"
+import { Search, Plus, Trash2, TrendingUp, TrendingDown, Check } from "lucide-react"
 
 export default function DashboardPage() {
   const nav = useNavigate()
   const qc = useQueryClient()
-  const [searchQ, setSearchQ] = useState("")
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [addCode, setAddCode] = useState("")
+  const [sq, setSq] = useState("")
+  const [sr, setSr] = useState<{ code: string; name: string }[]>([])
+  const [showDrop, setShowDrop] = useState(false)
+  const dropRef = useRef<HTMLDivElement>(null)
 
-  const { data: watchlist = [], isLoading } = useQuery({
+  const { data: watchlist = [] } = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
     refetchInterval: 60_000,
@@ -28,7 +29,8 @@ export default function DashboardPage() {
       qc.setQueryData<WatchlistQuote[]>(["dashboard"], (old) =>
         old ? [...old, { id: newItem.id, stock_code: newItem.stock_code, stock_name: newItem.stock_name, market: newItem.market, note: newItem.note, price: null, change_pct: null }] : old,
       )
-      setAddCode("")
+      setSq("")
+      setShowDrop(false)
     },
   })
 
@@ -39,16 +41,22 @@ export default function DashboardPage() {
     },
   })
 
-  const doSearch = async () => {
-    if (!searchQ.trim()) return
-    const results = await searchStocks(searchQ)
-    setSearchResults(results)
-  }
+  useEffect(() => {
+    if (sq.length < 1) { setSr([]); return }
+    const timer = setTimeout(async () => {
+      try { const r = await searchStocks(sq); setSr(r.slice(0, 8)); setShowDrop(true) } catch { /* */ }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [sq])
 
-  const pctColor = (v: number | null) => {
-    if (v == null) return ""
-    return v > 0 ? "text-red-500" : v < 0 ? "text-green-600" : ""
-  }
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (dropRef.current && !dropRef.current.contains(e.target as Node)) setShowDrop(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [])
+
+  const inWatch = new Set(watchlist.map((w) => w.stock_code))
+  const pctColor = (v: number | null) => (v == null ? "" : v > 0 ? "text-red-500" : v < 0 ? "text-green-600" : "")
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,35 +70,32 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* 搜索 */}
-        <div className="flex gap-2">
-          <Input placeholder="搜索股票代码/名称" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && doSearch()} />
-          <Button onClick={doSearch}><Search className="w-4 h-4" /></Button>
-        </div>
-        {searchResults.length > 0 && (
-          <Card>
-            <CardContent className="p-2">
-              {searchResults.map((s) => (
-                <div key={s.code} className="flex items-center justify-between px-3 py-2 hover:bg-accent rounded cursor-pointer" onClick={() => nav(`/stock/${s.code}`)}>
-                  <span>{s.name} ({s.code})</span>
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); addMut.mutate(s.code) }}><Plus className="w-3 h-3" /></Button>
+        <div className="relative max-w-md" ref={dropRef}>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="搜索股票名称/代码，点击 + 加入自选" value={sq} onChange={(e) => setSq(e.target.value)} className="pl-9" />
+          {showDrop && sr.length > 0 && (
+            <div className="absolute z-10 top-full mt-1 w-full bg-popover border rounded-md shadow-lg">
+              {sr.map((s) => (
+                <div key={s.code} className="flex items-center px-4 py-2 hover:bg-accent">
+                  <button className="flex-1 text-left" onClick={() => { nav(`/stock/${s.code}`); setShowDrop(false); setSq("") }}>
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-muted-foreground text-sm ml-2">{s.code}</span>
+                  </button>
+                  {inWatch.has(s.code) ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Button variant="ghost" size="icon" onClick={() => addMut.mutate(s.code)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 添加自选 */}
-        <div className="flex gap-2">
-          <Input placeholder="输入股票代码加入自选" value={addCode} onChange={(e) => setAddCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCode.trim() && addMut.mutate(addCode.trim())} />
-          <Button onClick={() => addCode.trim() && addMut.mutate(addCode.trim())} disabled={addMut.isPending}>添加自选</Button>
+            </div>
+          )}
         </div>
 
-        {/* 自选股列表 */}
         <h2 className="text-lg font-semibold">自选股</h2>
-        {isLoading ? (
-          <p className="text-muted-foreground">加载中...</p>
-        ) : watchlist.length === 0 ? (
+        {watchlist.length === 0 ? (
           <p className="text-muted-foreground">暂无自选股，搜索并添加</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
